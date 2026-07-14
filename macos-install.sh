@@ -174,5 +174,5 @@ launchctl load "/Library/LaunchDaemons/optimize-${pathname}.plist"
 launchctl start com.resolve.optimize.${pathname}
 
 echo "Congratulations, ${dbname} will be backed up every $backupFrequency seconds and optimized every $optimizeFrequency seconds."
-echo "You can check to make sure that everything is being backed up and optimized properly by periodically looking at the log files in: "${PATH_TOOLS}/logs"
+echo "You can check to make sure that everything is being backed up and optimized properly by periodically looking at the log files in: ${PATH_TOOLS}/logs"
 echo "Have a great day!"
