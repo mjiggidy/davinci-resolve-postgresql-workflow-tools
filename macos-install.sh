@@ -84,10 +84,10 @@ touch "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log" && \\
 chmod 777 "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log" && \\ 
 
 # Let's perform the backup and log to the monthly log file if the backup is successful.
-/Library/PostgreSQL/13/bin/pg_dump --host localhost --username postgres "$dbname" --blobs --file "$backupDirectory/${pathname}_\$(date "+%Y_%m_%d_%H_%M").backup --format=custom --verbose --no-password && \\
+/Library/PostgreSQL/13/bin/pg_dump --host localhost --username postgres "$dbname" --blobs --file "${backupDirectory}/${pathname}_\$(date "+%Y_%m_%d_%H_%M").backup" --format=custom --verbose --no-password && \\
 
 # Log to the log file
-echo "${dbname} was backed up at \$(date "+%Y_%m_%d_%H_%M") into "$backupDirectory"." >> "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log
+echo "${dbname} was backed up at \$(date "+%Y_%m_%d_%H_%M") into ${backupDirectory}." >> "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log"
 EOF
 
 # To make sure that this backup script will run from the root account without a password, we need to add a .pgpass file to /var/root if it doesn't already exist:
