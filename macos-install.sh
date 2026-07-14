@@ -162,8 +162,6 @@ EOF
 chmod 755 "/Library/LaunchDaemons/backup-${pathname}.plist"
 chmod 755 "/Library/LaunchDaemons/optimize-${pathname}.plist"
 
-exit
-
 # Now, the "backup" and "optimize" scripts and daemons are in place.
 # All we need to do is load these daemons into launchd and start them with launchctl.
 
