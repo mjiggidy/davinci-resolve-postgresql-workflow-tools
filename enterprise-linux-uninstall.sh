@@ -7,47 +7,50 @@ read -p "What is the name of the database for which you'd like to stop automatic
 echo "You entered: $dbname"
 read -p "Is that correct? Enter y or no: " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
 
+# Create a sanitized version of the database name for use in related filenames
+pathname=$(printf %s "$dbname" | tr -Cs "[:alnum:]" "_")
+
 # stop backup systemd timer
-systemctl stop backup-"$dbname".timer
+systemctl stop backup-${pathname}.timer
 
 # stop backup systemd service
-systemctl stop backup-"$dbname".service
+systemctl stop backup-${pathname}.service
 
 # stop optimize systemd timer
-systemctl stop optimize-"$dbname".timer
+systemctl stop optimize-${pathname}.timer
 
 # stop optimize systemd service
-systemctl stop optimize-"$dbname."service
+systemctl stop optimize-${pathname}.service
 
 # disable backup systemd timer
-systemctl disable backup-"$dbname".timer
+systemctl disable backup-${pathname}.timer
 
 # disable backup systemd service
-systemctl disable backup-"$dbname".service
+systemctl disable backup-${pathname}.service
 
 # disable optimize systemd timer
-systemctl disable optimize-"$dbname".timer
+systemctl disable optimize-${pathname}.timer
 
 # disable optimize systemd service
-systemctl disable optimize-"$dbname".service
+systemctl disable optimize-${pathname}.service
 
 # remove backup systemd timer file
-rm /etc/systemd/system/backup-"$dbname".timer
+rm /etc/systemd/system/backup-${pathname}.timer
 
 # remove backup systemd service file
-rm /etc/systemd/system/backup-"$dbname".service
+rm /etc/systemd/system/backup-${pathname}.service
 
 # remove optimize systemd timer file
-rm /etc/systemd/system/optimize-"$dbname".timer
+rm /etc/systemd/system/optimize-${pathname}.timer
 
 # remove optimize systemd service file
-rm /etc/systemd/system/optimize-"$dbname".service
+rm /etc/systemd/system/optimize-${pathname}.service
 
 # remove backup shell script
-rm /usr/local/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup/backup-"$dbname".sh
+rm /usr/local/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup/backup-${pathname}.sh
 
 # remove optimize shell script
-rm /usr/local/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize/optimize-"$dbname".sh
+rm /usr/local/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize/optimize-${pathname}.sh
 
 # log to monthly log file that $dbname has been uninstalled. $dbname will no longer be backed up or optimized
 echo "Backup and optimize tools for $dbname were uninstalled at $(date "+%Y_%m_%d_%H_%M"). $dbname will no longer be backed up or optimized." >> /usr/local/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-$(date "+%Y_%m").log
