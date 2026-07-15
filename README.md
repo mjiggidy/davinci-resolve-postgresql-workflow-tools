@@ -1,3 +1,6 @@
+>[!Note]
+>This is a fork to improve handling of whitespace and other special characters in Resolve database names.
+
 # DaVinci Resolve PostgreSQL Workflow Tools
 ## Effortlessly set up automatic backups and automatic optimizations of DaVinci Resolve's PostgreSQL databases
 
