@@ -1,13 +1,18 @@
 #!/bin/bash
 
+PATH_TOOLS="/Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools"
+
 # Here's where the user is going to enter the Resolve database name, as it appears in the GUI:
 read -p "Enter the name of your DaVinci Resolve PostgreSQL database: " dbname
 
 # Let's allow the user to confirm that what they've typed in is correct:
 echo "You entered: $dbname"
-read -p "Is that correct? Enter y or n: " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1 
+read -p "Is that correct? Enter y or n: " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
 
-# Now "$dbname" will work as a variable in subsequent paths.
+# Create a sanitized version of the database name for use in related filenames
+pathname=$(printf %s "$dbname" | tr -Cs "[:alnum:]" "_")
+
+# Now "$pathname" will work as a variable in subsequent paths.
 
 # Let's prompt the user for the "backup directory," which is where the backups from pg_dump will go:
 read -e -p "Into which directory should the database backups go? You can drag-and-drop a folder from Finder into Terminal. " backupDirectory
@@ -44,42 +49,45 @@ read -p "How often would you like to optimize the database, in seconds? " optimi
 # Let's have the user confirm that they entered the correct optimizing frequency:
 read -p "You entered that you want to optimize your database every $optimizeFrequency seconds. Is that correct? Enter y or n: " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || exit 1
 
-# Let's check if a /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools folder exists, and if it doesn't, let's create one:
-mkdir -p /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools
+# Let's check if a "${PATH_TOOLS} folder exists, and if it doesn't, let's create one:
+mkdir -p "$PATH_TOOLS"
 
 # Let's also check to see if there are separate directories for "backup" and "optimize" scripts, and if they don't exist, let's create them.
 # We're making separate directories for the different kinds of scripts just to keep everything clean and organized.
 
-mkdir -p /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup
-mkdir -p /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize
+mkdir -p "${PATH_TOOLS}/backup"
+mkdir -p "${PATH_TOOLS}/optimize"
 
 # Let's also make a folder for log files
-mkdir -p /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs
+mkdir -p "${PATH_TOOLS}/logs"
 
 # We also need to make sure that these folders in which the scripts are living have the proper permissions to execute:
-chmod -R 755 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup
-chmod -R 755 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize
-chmod -R 777 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs
+chmod -R 755 "${PATH_TOOLS}/backup"
+chmod -R 755 "${PATH_TOOLS}/optimize"
+chmod -R 777 "${PATH_TOOLS}/logs"
 
 # With all these folders created, with the correct permissions, we can go ahead and create the two different shell scripts that will be executed by the launchd XML files.
 
 # First, let's create the "backup" shell script:
-touch /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup/backup-"$dbname".sh
+touch "${PATH_TOOLS}/backup/backup-${pathname}.sh"
 
 # Now, let's fill it in:
-cat << EOF > /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup/backup-"$dbname".sh
+cat << EOF > "${PATH_TOOLS}/backup/backup-${pathname}.sh"
 #!/bin/bash
+
+curr_date_short=\$(date "+%Y_%m") && \\
+
 # Check to make sure that the log file exists
-touch /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-\$(date "+%Y_%m").log && \\
+touch "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log" && \\
 
 # Make sure that the file can be written to
-chmod 777 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-\$(date "+%Y_%m").log && \\ 
+chmod 777 "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log" && \\ 
 
 # Let's perform the backup and log to the monthly log file if the backup is successful.
-/Library/PostgreSQL/13/bin/pg_dump --host localhost --username postgres $dbname --blobs --file "$backupDirectory"/${dbname}_\$(date "+%Y_%m_%d_%H_%M").backup --format=custom --verbose --no-password && \\
+/Library/PostgreSQL/13/bin/pg_dump --host localhost --username postgres "$dbname" --blobs --file "${backupDirectory}/${pathname}_\$(date "+%Y_%m_%d_%H_%M").backup" --format=custom --verbose --no-password && \\
 
 # Log to the log file
-echo "${dbname} was backed up at \$(date "+%Y_%m_%d_%H_%M") into "$backupDirectory"." >> /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-\$(date "+%Y_%m").log
+echo "${dbname} was backed up at \$(date "+%Y_%m_%d_%H_%M") into ${backupDirectory}." >> "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log"
 EOF
 
 # To make sure that this backup script will run from the root account without a password, we need to add a .pgpass file to /var/root if it doesn't already exist:
@@ -91,40 +99,42 @@ if [ ! -f /var/root/.pgpass ]; then
 fi
 
 # Let's move onto the "optimize" script:
-touch /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize/optimize-"$dbname".sh
-cat << EOF > /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize/optimize-"$dbname".sh
+touch "${PATH_TOOLS}/optimize/optimize-${pathname}.sh"
+cat << EOF > "${PATH_TOOLS}/optimize/optimize-${pathname}.sh"
 #!/bin/bash
 # Let's optimize the database and log to the monthly log file if the optimization is successful.
 
+curr_date_short=\$(date "+%Y_%m") && \\
+
 # Check to make sure that the log file exists
-touch /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-\$(date "+%Y_%m").log && \\
+touch "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log" && \\
 
 # Make sure that the file can be written to
-chmod 777 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-\$(date "+%Y_%m").log && \\ 
+chmod 777 "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log" && \\ 
 
 # Perform the two "optimize" functions and log to the log file
-/Library/PostgreSQL/13/bin/reindexdb --host localhost --username postgres $dbname --no-password --echo && \\
-/Library/PostgreSQL/13/bin/vacuumdb --analyze --host localhost --username postgres $dbname --verbose --no-password && \\
-echo "${dbname} was optimized at \$(date "+%Y_%m_%d_%H_%M")." >> /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs/logs-\$(date "+%Y_%m").log
+/Library/PostgreSQL/13/bin/reindexdb --host localhost --username postgres "$dbname" --no-password --echo && \\
+/Library/PostgreSQL/13/bin/vacuumdb --analyze --host localhost --username postgres "$dbname" --verbose --no-password && \\
+echo "${dbname} was optimized at \$(date "+%Y_%m_%d_%H_%M")." >> "${PATH_TOOLS}/logs/logs-\${curr_date_short}.log"
 EOF
 
 # Now each individual shell script needs to have their permissions set properly for launchd to read and execute the scripts, so let's use 755:
-chmod 755 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup/backup-"$dbname".sh
-chmod 755 /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize/optimize-"$dbname".sh
+chmod 755 "${PATH_TOOLS}/backup/backup-${pathname}.sh"
+chmod 755 "${PATH_TOOLS}/optimize/optimize-${pathname}.sh"
 
 # With both shell scripts created with the proper permissions, we can create, load, and start the two different launchd user daemons.
 
 # Let's create the "backup" daemon first.
-touch /Library/LaunchDaemons/backup-"$dbname".plist
-cat << EOF > /Library/LaunchDaemons/backup-"$dbname".plist
+touch "/Library/LaunchDaemons/backup-${pathname}.plist"
+cat << EOF > "/Library/LaunchDaemons/backup-${pathname}.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.resolve.backup.$dbname</string>
+    <string>com.resolve.backup.${pathname}</string>
     <key>Program</key>
-        <string>/Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/backup/backup-$dbname.sh</string>
+        <string>${PATH_TOOLS}/backup/backup-${pathname}.sh</string>
     <key>StartInterval</key>
     <integer>$backupFrequency</integer>
 </dict>
@@ -132,16 +142,16 @@ cat << EOF > /Library/LaunchDaemons/backup-"$dbname".plist
 EOF
 
 # Now let's create the "optimize" daemon.
-touch /Library/LaunchDaemons/optimize-"$dbname".plist
-cat << EOF > /Library/LaunchDaemons/optimize-"$dbname".plist
+touch "/Library/LaunchDaemons/optimize-${pathname}.plist"
+cat << EOF > "/Library/LaunchDaemons/optimize-${pathname}.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.resolve.optimize.$dbname</string>
+    <string>com.resolve.optimize.${pathname}</string>
     <key>Program</key>
-        <string>/Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/optimize/optimize-$dbname.sh</string>
+        <string>${PATH_TOOLS}/optimize/optimize-${pathname}.sh</string>
     <key>StartInterval</key>
     <integer>$optimizeFrequency</integer>
 </dict>
@@ -149,20 +159,20 @@ cat << EOF > /Library/LaunchDaemons/optimize-"$dbname".plist
 EOF
 
 # These plist files inside /Library/LaunchDaemons each need permissions of 755.
-chmod 755 /Library/LaunchDaemons/backup-"$dbname".plist
-chmod 755 /Library/LaunchDaemons/optimize-"$dbname".plist
+chmod 755 "/Library/LaunchDaemons/backup-${pathname}.plist"
+chmod 755 "/Library/LaunchDaemons/optimize-${pathname}.plist"
 
 # Now, the "backup" and "optimize" scripts and daemons are in place.
 # All we need to do is load these daemons into launchd and start them with launchctl.
 
 # First, let's load and start the backup daemon.
-launchctl load /Library/LaunchDaemons/backup-${dbname}.plist
-launchctl start com.resolve.backup.${dbname}
+launchctl load "/Library/LaunchDaemons/backup-${pathname}.plist"
+launchctl start com.resolve.backup.${pathname}
 
 # Lastly, let's load and start the optimize daemon.
-launchctl load /Library/LaunchDaemons/optimize-${dbname}.plist
-launchctl start com.resolve.optimize.${dbname}
+launchctl load "/Library/LaunchDaemons/optimize-${pathname}.plist"
+launchctl start com.resolve.optimize.${pathname}
 
-echo "Congratulations, $dbname will be backed up every $backupFrequency seconds and optimized every $optimizeFrequency seconds."
-echo "You can check to make sure that everything is being backed up and optimized properly by periodically looking at the log files in: /Users/Shared/DaVinci-Resolve-PostgreSQL-Workflow-Tools/logs"
+echo "Congratulations, ${dbname} will be backed up every $backupFrequency seconds and optimized every $optimizeFrequency seconds."
+echo "You can check to make sure that everything is being backed up and optimized properly by periodically looking at the log files in: ${PATH_TOOLS}/logs"
 echo "Have a great day!"
